@@ -1,0 +1,136 @@
+# KubeShield OPA (Open Policy Agent) Policy Definitions
+# Defines security and operational policies for anomaly response
+
+package kubeshield
+
+# Default deny
+default allow = false
+
+# Anomaly severity levels
+anomaly_severity_low = 0.50
+anomaly_severity_medium = 0.75
+anomaly_severity_high = 0.85
+anomaly_severity_critical = 0.95
+
+# Alert configurations
+alert_low_threshold = 0.50
+alert_medium_threshold = 0.75
+alert_high_threshold = 0.85
+alert_critical_threshold = 0.95
+
+# Isolation policy: For high-confidence anomalies, isolate the pod
+allow_isolation {
+    input.anomaly_score >= anomaly_severity_high
+    input.confidence >= 0.90
+}
+
+# Quarantine policy: For critical anomalies, quarantine and alert
+allow_quarantine {
+    input.anomaly_score >= anomaly_severity_critical
+    input.confidence >= 0.95
+}
+
+# Alert policy: Generate alerts for various severity levels
+allow_alert_low {
+    input.anomaly_score >= alert_low_threshold
+    input.anomaly_score < alert_medium_threshold
+}
+
+allow_alert_medium {
+    input.anomaly_score >= alert_medium_threshold
+    input.anomaly_score < alert_high_threshold
+}
+
+allow_alert_high {
+    input.anomaly_score >= alert_high_threshold
+    input.anomaly_score < alert_critical_threshold
+}
+
+allow_alert_critical {
+    input.anomaly_score >= alert_critical_threshold
+}
+
+# Namespace-based policies
+allow_in_default_ns {
+    input.namespace == "default"
+    input.anomaly_score < 0.70
+}
+
+allow_in_kube_system {
+    input.namespace == "kube-system"
+    input.anomaly_score < 0.65
+}
+
+# Role-based access policies
+allow_admin_action {
+    input.user_role == "admin"
+    input.action in ["create", "update", "delete", "exec", "portforward"]
+}
+
+allow_developer_action {
+    input.user_role == "developer"
+    input.action in ["get", "list", "describe", "logs"]
+}
+
+# Time-based policies (prevent actions during non-business hours)
+allow_business_hours_only {
+    hour >= 9
+    hour <= 17
+    day_of_week != "Saturday"
+    day_of_week != "Sunday"
+}
+
+# Temporal anomaly patterns
+allow_consecutive_anomalies {
+    count(input.recent_anomalies[_]) >= 3
+}
+
+# Model confidence-based policies
+allow_high_confidence {
+    input.model_confidence >= 0.85
+}
+
+allow_ensemble_consensus {
+    input.lstm_agrees == true
+    input.isolation_forest_agrees == true
+    input.gnn_agrees == true
+}
+
+# Action recommendations based on anomaly type
+recommend_action = action {
+    input.anomaly_score >= anomaly_severity_critical
+    action := "QUARANTINE"
+} else = action {
+    input.anomaly_score >= anomaly_severity_high
+    action := "ISOLATE"
+} else = action {
+    input.anomaly_score >= anomaly_severity_medium
+    action := "MONITOR"
+} else = action {
+    input.anomaly_score >= anomaly_severity_low
+    action := "LOG"
+} else = action {
+    action := "ALLOW"
+}
+
+# Policy violations
+policy_violation = violations {
+    violations := [
+        violation |
+        violation := invalid_action_in_namespace;
+        violation := unauthorized_user_action;
+        violation := suspicious_activity_pattern
+    ]
+}
+
+# Audit logging requirements
+audit_required {
+    input.anomaly_score >= alert_high_threshold
+}
+
+# Metrics for policy compliance
+policy_compliance_metrics {
+    "alerts_generated": count([a | allow_alert_low[a]]),
+    "isolations_triggered": count([i | allow_isolation[i]]),
+    "quarantines_activated": count([q | allow_quarantine[q]])
+}

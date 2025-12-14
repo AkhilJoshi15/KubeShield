@@ -1,0 +1,92 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.log
+*.pot
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Models
+models/*.h5
+models/*.joblib
+models/*.pkl
+models/*.pth
+*.ckpt
+
+# Data
+data/
+*.csv
+*.jsonl
+*.parquet
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+target/
+.gradle/
+build/
+gradle/
+
+# Go
+*.exe
+*.test
+*.out
+vendor/
+
+# Kubernetes
+*.kubeconfig
+secrets/
+
+# Logs
+logs/
+*.log
+audit_logs.jsonl
+
+# Helm
+*.tgz
+charts/
+
+# Misc
+.env
+.env.local
+*.bak
+*.tmp
+evaluation_plots/

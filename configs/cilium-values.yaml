@@ -1,0 +1,144 @@
+# Cilium Network Policy Configuration for KubeShield
+# Enables fine-grained network control and monitoring
+
+# Egress policies
+egress:
+  - toEndpoints:
+    - matchLabels:
+        k8s:app: kafka
+    toPorts:
+    - ports:
+      - port: "9092"
+        protocol: TCP
+      - port: "9093"
+        protocol: TCP
+      - port: "9094"
+        protocol: TCP
+    description: "Allow Kafka broker access"
+
+  - toFQDNs:
+    - matchName: "*.kubernetes.default.svc.cluster.local"
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+    description: "Allow Kubernetes API access"
+
+  - toFQDNs:
+    - matchName: "*.docker.io"
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+    description: "Allow Docker Hub access for container pulls"
+
+# Ingress policies
+ingress:
+  - fromEndpoints:
+    - matchLabels:
+        k8s:app: kubeshield-collector
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+    description: "Allow data collector ingress"
+
+  - fromEndpoints:
+    - matchLabels:
+        k8s:app: prometheus
+    toPorts:
+    - ports:
+      - port: "9090"
+        protocol: TCP
+    description: "Allow Prometheus scraping"
+
+# Deny policies (default deny all)
+deny_egress: false
+deny_ingress: false
+
+# Network policies for namespace isolation
+namespace_policies:
+  kube-system:
+    allow_all: true
+    description: "System namespace - allow all traffic"
+  
+  kubeshield:
+    default_action: "deny"
+    allow_rules:
+      - from:
+        - namespace: "kubeshield"
+        to:
+          - app: "kafka"
+            protocol: "TCP"
+            port: 9092
+      
+      - from:
+        - namespace: "monitoring"
+        to:
+          - app: "kubeshield-mlengine"
+            protocol: "TCP"
+            port: 9090
+
+# L7 policies (DNS, HTTP)
+l7_policies:
+  dns:
+    allowed_domains:
+      - "*.kubernetes.svc.cluster.local"
+      - "docker.io"
+      - "gcr.io"
+      - "quay.io"
+    denied_domains: []
+  
+  http:
+    allowed_paths:
+      - "/health"
+      - "/ready"
+      - "/metrics"
+      - "/api/v1/*"
+    denied_paths:
+      - "/admin/*"
+      - "/debug/*"
+
+# Traffic mirroring for anomaly analysis
+traffic_mirroring:
+  enabled: true
+  mirror_destination: "kubeshield-traffic-analyzer:8080"
+  mirror_percentage: 10
+
+# Encryption policies
+encryption:
+  tls_required: true
+  cipher_suites:
+    - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+    - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+  min_tls_version: "1.2"
+
+# QoS and rate limiting
+qos:
+  enabled: true
+  default_bandwidth: "1Gbps"
+  priority_classes:
+    critical:
+      bandwidth: "10Gbps"
+      priority: 100
+    high:
+      bandwidth: "5Gbps"
+      priority: 50
+    normal:
+      bandwidth: "1Gbps"
+      priority: 0
+
+# Policy enforcement
+enforcement:
+  mode: "enforce"  # or "audit", "disabled"
+  log_dropped_traffic: true
+  alert_on_policy_violation: true
+  violation_threshold: 0.85
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  flow_logs: true
+  metrics_enabled: true
+  metrics_port: 9191
+  export_to_prometheus: true

@@ -1,0 +1,173 @@
+# KubeShield Helm Chart Default Values
+
+# Global settings
+global:
+  environment: production
+  logLevel: info
+
+# Replica count for deployments
+replicaCount: 2
+
+# Data Collection Agent settings
+collector:
+  enabled: true
+  image: akhiljoshi/kubeshield-collector:latest
+  imagePullPolicy: IfNotPresent
+  
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  
+  # Kafka configuration
+  kafka:
+    broker: "kafka-broker:9092"
+    topic: "kubeshield-telemetry"
+    consumerGroup: "kubeshield-collector"
+  
+  # Node selector
+  nodeSelector: {}
+  
+  # Tolerations
+  tolerations: []
+
+# Stream Processing (Flink) settings
+flink:
+  enabled: true
+  jobManager:
+    replicas: 1
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+  
+  taskManager:
+    replicas: 2
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+
+# ML Engine settings
+mlEngine:
+  enabled: true
+  image: akhiljoshi/kubeshield-ml:latest
+  imagePullPolicy: IfNotPresent
+  
+  replicas: 2
+  
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+      nvidia.com/gpu: "0"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+      nvidia.com/gpu: "1"
+  
+  # Model configuration
+  models:
+    lstmAutoencoder:
+      enabled: true
+      sequenceLength: 60
+      featureDim: 73
+      encodingDim: 16
+    
+    isolationForest:
+      enabled: true
+      nEstimators: 150
+      contamination: 0.05
+    
+    gnn:
+      enabled: true
+      hiddenDim: 128
+      numLayers: 3
+  
+  # Inference settings
+  inference:
+    batchSize: 32
+    anomalyThreshold: 0.85
+    timeout: 30s
+  
+  # Model paths
+  modelDir: "/models"
+  
+  # Kafka configuration
+  kafka:
+    inputTopic: "kubeshield-features"
+    outputTopic: "kubeshield-anomalies"
+    consumerGroup: "kubeshield-ml"
+    broker: "kafka-broker:9092"
+
+# Kafka settings
+kafka:
+  enabled: true
+  broker: "kafka-broker:9092"
+  topics:
+    telemetry: "kubeshield-telemetry"
+    features: "kubeshield-features"
+    anomalies: "kubeshield-anomalies"
+  partitions: 3
+  replicationFactor: 2
+
+# Monitoring and logging
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    port: 9090
+  
+  logging:
+    level: info
+    format: json
+
+# Ingress settings
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: kubeshield.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "kubeshield-sa"
+
+# Pod security policy
+podSecurityPolicy:
+  enabled: false
+
+# Network policy
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+
+# RBAC settings
+rbac:
+  enabled: true
+
+# Storage
+persistence:
+  enabled: true
+  storageClassName: "standard"
+  accessMode: ReadWriteOnce
+  size: "10Gi"
+  mountPath: "/data"

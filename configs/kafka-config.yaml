@@ -1,0 +1,97 @@
+# KubeShield Kafka Configuration
+
+cluster:
+  name: "kubeshield-cluster"
+  version: "2.8.0"
+
+brokers:
+  - host: "kafka-broker-0"
+    port: 9092
+  - host: "kafka-broker-1"
+    port: 9092
+  - host: "kafka-broker-2"
+    port: 9092
+
+topics:
+  # Raw telemetry from data collection agent
+  kubeshield-telemetry:
+    partitions: 6
+    replication_factor: 3
+    retention_ms: 604800000  # 7 days
+    compression_type: snappy
+    cleanup_policy: delete
+    segment_ms: 3600000  # 1 hour
+    configs:
+      min.insync.replicas: 2
+      unclean.leader.election.enable: "false"
+  
+  # Processed features from Flink
+  kubeshield-features:
+    partitions: 6
+    replication_factor: 3
+    retention_ms: 259200000  # 3 days
+    compression_type: snappy
+    cleanup_policy: delete
+    segment_ms: 1800000  # 30 minutes
+    configs:
+      min.insync.replicas: 2
+  
+  # Anomaly detection results
+  kubeshield-anomalies:
+    partitions: 3
+    replication_factor: 3
+    retention_ms: 604800000  # 7 days
+    compression_type: snappy
+    cleanup_policy: delete
+    segment_ms: 1800000
+    configs:
+      min.insync.replicas: 2
+
+consumer_groups:
+  kubeshield-feature-extractor:
+    topics:
+      - kubeshield-telemetry
+    group_initial_rebalance_delay_ms: 3000
+    session_timeout_ms: 30000
+    heartbeat_interval_ms: 10000
+  
+  kubeshield-ml:
+    topics:
+      - kubeshield-features
+    group_initial_rebalance_delay_ms: 3000
+    session_timeout_ms: 30000
+    heartbeat_interval_ms: 10000
+
+producer:
+  acks: all
+  retries: 3
+  retry_backoff_ms: 100
+  batch_size: 32768
+  linger_ms: 100
+  buffer_memory: 67108864  # 64MB
+  compression_type: snappy
+  request_timeout_ms: 30000
+
+consumer:
+  fetch_min_bytes: 1024
+  fetch_max_wait_ms: 500
+  session_timeout_ms: 30000
+  heartbeat_interval_ms: 10000
+  max_poll_records: 500
+  max_poll_interval_ms: 300000
+
+security:
+  protocol: PLAINTEXT
+  # For production, enable SSL/TLS:
+  # protocol: SSL
+  # ssl_keystore_location: /etc/kafka/secrets/kafka.client.keystore.jks
+  # ssl_keystore_password: ${KAFKA_KEYSTORE_PASSWORD}
+  # ssl_key_password: ${KAFKA_KEY_PASSWORD}
+  # ssl_truststore_location: /etc/kafka/secrets/kafka.client.truststore.jks
+  # ssl_truststore_password: ${KAFKA_TRUSTSTORE_PASSWORD}
+
+monitoring:
+  jmx_enabled: true
+  jmx_port: 9999
+  prometheus_exporter_enabled: true
+  prometheus_exporter_port: 5556

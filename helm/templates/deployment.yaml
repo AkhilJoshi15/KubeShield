@@ -1,0 +1,199 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-mlengine
+  namespace: {{ .Release.Namespace | default "default" }}
+  labels:
+    app: kubeshield-mlengine
+    release: {{ .Release.Name }}
+    version: {{ .Chart.AppVersion }}
+spec:
+  replicas: {{ .Values.mlEngine.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  
+  selector:
+    matchLabels:
+      app: kubeshield-mlengine
+      release: {{ .Release.Name }}
+  
+  template:
+    metadata:
+      labels:
+        app: kubeshield-mlengine
+        release: {{ .Release.Name }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.monitoring.prometheus.port }}"
+        prometheus.io/path: "/metrics"
+    
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+      
+      # Init containers
+      initContainers:
+      - name: wait-for-kafka
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nc -z {{ .Values.kafka.broker }}; do echo waiting for kafka; sleep 2; done;']
+      
+      # Main container
+      containers:
+      - name: mlengine
+        image: "{{ .Values.mlEngine.image }}"
+        imagePullPolicy: {{ .Values.mlEngine.imagePullPolicy }}
+        
+        # Ports
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: metrics
+          containerPort: {{ .Values.monitoring.prometheus.port }}
+          protocol: TCP
+        
+        # Environment variables
+        env:
+        - name: KAFKA_BROKER
+          value: "{{ .Values.kafka.broker }}"
+        - name: INPUT_TOPIC
+          value: "{{ .Values.mlEngine.kafka.inputTopic }}"
+        - name: OUTPUT_TOPIC
+          value: "{{ .Values.mlEngine.kafka.outputTopic }}"
+        - name: MODEL_DIR
+          value: "{{ .Values.mlEngine.modelDir }}"
+        - name: BATCH_SIZE
+          value: "{{ .Values.mlEngine.inference.batchSize }}"
+        - name: ANOMALY_THRESHOLD
+          value: "{{ .Values.mlEngine.inference.anomalyThreshold }}"
+        - name: LOG_LEVEL
+          value: "{{ .Values.global.logLevel }}"
+        - name: ENVIRONMENT
+          value: "{{ .Values.global.environment }}"
+        
+        # Resource limits
+        resources:
+          requests:
+            memory: "{{ .Values.mlEngine.resources.requests.memory }}"
+            cpu: "{{ .Values.mlEngine.resources.requests.cpu }}"
+          limits:
+            memory: "{{ .Values.mlEngine.resources.limits.memory }}"
+            cpu: "{{ .Values.mlEngine.resources.limits.cpu }}"
+        
+        # Liveness probe
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness probe
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        
+        # Volume mounts
+        volumeMounts:
+        - name: models
+          mountPath: "{{ .Values.mlEngine.modelDir }}"
+        - name: logs
+          mountPath: /var/log/kubeshield
+        
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      
+      # Volumes
+      volumes:
+      - name: models
+        {{- if .Values.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-models-pvc
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: logs
+        emptyDir: {}
+      
+      # Node affinity (prefer nodes with GPU if available)
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 10
+            preference:
+              matchExpressions:
+              - key: accelerator
+                operator: In
+                values:
+                - nvidia-tesla-v100
+                - nvidia-tesla-a100
+      
+      {{- with .Values.mlEngine.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      
+      {{- with .Values.mlEngine.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-mlengine
+  namespace: {{ .Release.Namespace | default "default" }}
+  labels:
+    app: kubeshield-mlengine
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: http
+    protocol: TCP
+    name: http
+  - port: {{ .Values.monitoring.prometheus.port }}
+    targetPort: metrics
+    protocol: TCP
+    name: metrics
+  selector:
+    app: kubeshield-mlengine
+    release: {{ .Release.Name }}
+
+---
+{{- if .Values.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-models-pvc
+  namespace: {{ .Release.Namespace | default "default" }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.accessMode }}
+  storageClassName: {{ .Values.persistence.storageClassName }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+{{- end }}

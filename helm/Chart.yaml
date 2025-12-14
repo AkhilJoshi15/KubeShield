@@ -1,0 +1,25 @@
+# KubeShield Helm Chart
+
+apiVersion: v2
+name: kubeshield
+description: KubeShield ensemble ML anomaly detection for Kubernetes
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+# Chart metadata
+home: https://github.com/AkhilJoshi15/KubeShield
+sources:
+  - https://github.com/AkhilJoshi15/KubeShield
+maintainers:
+  - name: Akhil Joshi
+    email: akhil@example.com
+
+keywords:
+  - anomaly-detection
+  - machine-learning
+  - kubernetes
+  - security
+  - monitoring
+
+dependencies: []
