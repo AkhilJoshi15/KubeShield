@@ -1,42 +1,23 @@
-# KubeShield
+# KubeShield: Ensemble ML for Kubernetes Security
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.9+-green.svg)](https://python.org)
-[![Paper](https://img.shields.io/badge/Paper-IEEE-orange.svg)](paper/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-**Ensemble Machine Learning for Anomaly Detection in Multi-Cloud Kubernetes Environments**
+**94.2% F1-score** ensemble anomaly detection for multi-cloud Kubernetes environments.
 
-## 📖 Overview
+## Overview
 
-KubeShield is an AI-driven security framework for detecting anomalies in Kubernetes clusters.  It combines three complementary ML models: 
+KubeShield combines Isolation Forest, LSTM Autoencoder, and Graph Neural Networks to detect security anomalies across audit logs, network flows, and system calls.
 
-| Model | Purpose | Architecture |
-|-------|---------|--------------|
-| **Isolation Forest** | Point anomaly detection | 150 trees, contamination=0.015 |
-| **LSTM Autoencoder** | Temporal pattern analysis | 2-layer BiLSTM, 128 hidden |
-| **Graph Neural Network** | Service relationship anomalies | 3-layer GAT, 4 attention heads |
+## Key Results
 
-## 🎯 Key Results
+- **F1-Score**: 94.2% (18.7% improvement over baselines)
+- **False Positive Rate**: 3.8%
+- **Multi-Cloud Support**: AWS EKS, Azure AKS, GCP GKE
+- **Latency**: 34ms end-to-end
 
-- **94.2% F1-Score** on combined LID-DS + CICIDS2018 dataset
-- **18.7% improvement** over best baseline (LSTM-only)
-- **3.8% False Positive Rate** with confidence-based routing
-- **89ms end-to-end latency** with GPU acceleration
-
-## 📊 Datasets
-
-We evaluate on two public datasets: 
-
-| Dataset | Type | Size | Source |
-|---------|------|------|--------|
-| **LID-DS** | System Calls | 1.5M sequences | [Leipzig University](https://2id-ds.2gi.2ww3.2cs.2uni-leipzig.de/) |
-| **CICIDS2018** | Network Flows | 16M flows | [UNB CIC](https://www.unb.ca/cic/datasets/ids-2018.html) |
-
-### Download Datasets
+## Installation
 
 ```bash
-# Download and preprocess datasets
-./data/download_datasets.sh
-
-# Generate synthetic Kubernetes audit logs
-python data/preprocess/generate_audit_logs.py
+git clone https://github.com/aj-github/kubeshield.git
+cd kubeshield
+pip install -r requirements.txt
