@@ -262,11 +262,11 @@ Based on the accompanying paper:
 If you use KubeShield in your research, please cite the accompanying IEEE paper:
 
 ```bibtex
-@article{kubeshield2024,
-  title={KubeShield: Ensemble Machine Learning for Anomaly Detection in Multi-Cloud Kubernetes Environments},
-  author={Joshi, Akhil and ...},
-  journal={IEEE Transactions on Cloud Computing},
-  year={2024}
+@article{kubeshield2026,
+  title   = {KubeShield: Ensemble Machine Learning for Anomaly Detection in Multi-Cloud Kubernetes Environments},
+  author  = {Joshi, Akhil and Segireddy, Akshitha},
+  journal = {IEEE Transactions on Cloud Computing},
+  year    = {2026}
 }
 ```
 
